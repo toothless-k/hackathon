@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://java.sun.com/xml/ns/javaee" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" id="WebApp_ID" version="3.0">
+  <display-name>OnlineInventory-copy</display-name>
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+    <welcome-file>index.htm</welcome-file>
+    <welcome-file>index.jsp</welcome-file>
+    <welcome-file>default.html</welcome-file>
+    <welcome-file>default.htm</welcome-file>
+    <welcome-file>default.jsp</welcome-file>
+  </welcome-file-list>
+  <servlet>
+    <servlet-name>Display</servlet-name>
+    <servlet-class>com.verizon.shop.Display</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Display</servlet-name>
+    <url-pattern>/Display</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>cartAdd</servlet-name>
+    <servlet-class>com.verizon.shop.cartAdd</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>cartAdd</servlet-name>
+    <url-pattern>/cartAdd</url-pattern>
+  </servlet-mapping>
+  
+  <servlet>
+    <servlet-name>Purchase</servlet-name>
+    <servlet-class>com.verizon.shop.Purchase</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Purchase</servlet-name>
+    <url-pattern>/Purchase</url-pattern>
+  </servlet-mapping>
+   
+  <servlet>
+    <servlet-name>Pay</servlet-name>
+    <servlet-class>com.verizon.shop.Pay</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>Pay</servlet-name>
+    <url-pattern>/Pay</url-pattern>
+  </servlet-mapping>
+  
+  
+</web-app>
+
+
+--------------------------
+
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<form action="Display" method=GET>
+Name: <input type="text" name="nam"/><br/>
+Category: <input type="text" name="cat"/><br/>
+
+
+<button type="submit" value="Place order" >Submit</button>
+</form>
+</body>
+</html>
+------------
+package com.verizon;
+
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class Display extends HttpServlet{
+	
+	private static final long serialVersionUID=1L;
+	
+	public void doGet(HttpServletRequest req, HttpServletResponse res)throws IOException, ServletException
+	{
+		String cate=null, bran=null, name=null, cost=null;
+		int id=1;
+		String result="";
+		try
+		{
+			PrintWriter out=res.getWriter();
+			cate=req.getParameter("cat");
+			bran=req.getParameter("bra");
+			name=req.getParameter("nam");
+			
+			Class.forName("oracle.jdbc.driver.OracleDriver");
+			Connection con=DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:xe","hr","Admin");
+			Statement st=con.createStatement();
+			ResultSet rs=st.executeQuery("select * from inventory where item_name='"+name+"'");
+			
+			while(rs.next())
+			{
+				id=rs.getInt(1);
+				name=rs.getString(2);
+				
+				cate=rs.getString(4);
+				cost=rs.getString(5);
+				result=result+" Id: "+id+" Name: "+name+" Category: "+cate+" Cost per piece: "+cost+" ";
+				}
+			
+			RequestDispatcher rd=req.getRequestDispatcher("/success.jsp");
+			req.setAttribute("auto", result);
+			rd.forward(req, res);
+			st.close();
+			rs.close();
+			con.close();
+		}catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+		
+	}
+
+}
+
+------------------------------------------
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+item chosen:${requestScope["auto"]}
+
+<form action="cartAdd" mehod=GET>
+
+<h4>Items to add to cart</h4>
+Id:<input type="text" name="item"><br/>
+Quantity: <input type="text" name="quant"><br/>
+<button type="submit" value="submit">submit</button>
+</body>
+</html>
+
+---------------------
+
+package com.verizon;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class cartAdd extends HttpServlet{
+	public void doGet(HttpServletRequest req, HttpServletResponse res)
+	{
+		try
+		{
+			RequestDispatcher rd=null;
+			int i=1;
+			int id=Integer.parseInt(req.getParameter("item"));
+			String name=null, cost=null, category=null, quant=null;
+			quant=req.getParameter("quan");
+			
+			Class.forName("oracle.jdbc.driver.OracleDriver");
+			Connection con=DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:xe","hr","Admin");
+			Statement st=con.createStatement();
+			ResultSet rs=st.executeQuery("select * from inventory where item_id="+id);
+			while(rs.next())
+			{
+				name=rs.getString(2);
+				
+				category=rs.getString(4);
+				cost=rs.getString(5);
+			}
+			rs.close();
+			i=st.executeUpdate("Insert into orderdetails values ("+id+",'"+quant+"','"+cost+"')");
+			rd=req.getRequestDispatcher("/additionToCart.jsp");
+			rd.forward(req, res);
+		}catch(Exception e){
+			e.printStackTrace();
+		}
+		}
+	}
+
+
+-----------------------------------------------------------------------------
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<h5>Item added Successfully</h5>
+
+<form action="index.jsp">
+Want to add more? <button type="submit" value="submit">ADD!!</button>
+
+</form>
+<form action="Purchase" method=GET>
+<button type="submit" value="SUBMIT">PURCHASE!!</button>
+</form>
+</body>
+</html>
+
+---------------
+
+package com.verizon;
+
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class Purchase extends HttpServlet{
+
+	
+	public void doGet(HttpServletRequest req, HttpServletResponse res)throws IOException, ServletException
+	{
+		try
+		{
+			String buffer=" ", name=null, category=null;
+			int quant=0;
+			int id=1, cost=1, total=0;
+			Class.forName("oracle.jdbc.driver.OracleDriver");
+			Connection con=DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:xe","hr","Admin");
+			Statement st=con.createStatement();
+			ResultSet rs=st.executeQuery("Select * from orderdetails");
+			ResultSet rs1=st.executeQuery("Select * from inventory");
+			while(rs.next())
+			{
+				id=rs.getInt(1);
+				
+				quant=Integer.parseInt(rs.getString(2));
+				
+				cost=Integer.parseInt(rs.getString(3));
+				total=total+(cost*quant);
+				buffer=buffer+" Item ID: "+id+" Quantity: "+quant+" Cost per piece: "+cost+" ";
+			}
+			while(rs1.next())
+			{
+				name=rs1.getString(2);
+				category=rs1.getString(4);
+				buffer=buffer+" Name: "+name+" Category: "+category+" ";
+			}
+			RequestDispatcher rd=req.getRequestDispatcher("/cartValue.jsp");
+			req.setAttribute("user",buffer);
+			req.setAttribute("co",total);
+			rd.forward(req, res);
+			
+			
+		}catch(Exception e){e.printStackTrace();}
+		
+		
+		
+	}
+	
+	
+
+}
+---------------------------------------------------------------
+
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+cart items: ${requestScope["user"]}
+
+<br>
+cost: ${requestScope["co"]}
+<form action="Pay" method=GET>
+UserName: <input type="text" name="uname" value="uname">
+Password:<input type="password" name="pass" value="pass">
+<button type="Submit" value="Submit">Login</button>
+</body>
+</html>
+
+-----------------------------------
+package com.verizon;
+
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
+
+import javax.servlet.RequestDispatcher;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+public class Pay extends HttpServlet{
+	
+	
+	public void doGet(HttpServletRequest req, HttpServletResponse res)throws IOException, ServletException
+
+	{
+		
+try{
+			
+			RequestDispatcher rd=null;
+			int flag=1;
+			String name=null, passw=null;
+			name=req.getParameter("uname");
+			passw=req.getParameter("pass");
+			String p=null;
+			Class.forName("oracle.jdbc.driver.OracleDriver");
+			Connection con=DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:xe","hr","Admin");
+			Statement st=con.createStatement();
+			ResultSet rs=st.executeQuery("Select * from users where uname='"+name+"'");
+			while(rs.next())
+			{
+				p=rs.getString("pass");
+			}
+			if(passw==p)
+			{
+				flag=1;
+			}
+			if(flag==1)
+			{
+		rd=req.getRequestDispatcher("/Done.jsp");
+			}
+			else
+				rd=req.getRequestDispatcher("/error.jsp");
+			
+			
+			
+			rd.forward(req, res);
+			
+			
+		}catch(Exception e){e.printStackTrace();}
+		
+		
+		
+	}
+}
+
+--------------------------------------------------
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<h5>Done!Items has been purchased !</h5>
+</body>
+</html>
+
+--------------------------------------
+<%@ page language="java" contentType="text/html; charset=ISO-8859-1"
+    pageEncoding="ISO-8859-1"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Insert title here</title>
+</head>
+<body>
+<h5>Login Error! Items Cannot be purchased</h5>
+</body>
+</html>
